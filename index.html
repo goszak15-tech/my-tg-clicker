@@ -2,14 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мой первый кликер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Змейка с уровнями</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            /* Используем системные цвета Телеграма */
-            background-color: var(--tg-theme-bg-color); 
-            color: var(--tg-theme-text-color);
+            background-color: #1a1a1a;
+            color: white;
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
@@ -17,60 +16,182 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden;
             user-select: none;
         }
-        #score {
-            font-size: 60px;
-            font-weight: bold;
-            margin-bottom: 20px;
+
+        #ui {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            margin-bottom: 10px;
         }
-        #click-button {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            border: none;
-            background: var(--tg-theme-button-color); /* Цвет кнопки из темы ТГ */
-            color: var(--tg-theme-button-text-color); /* Цвет текста кнопки из темы ТГ */
-            font-size: 24px;
+
+        #game-container {
+            position: relative;
+            border: 4px solid #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+        }
+
+        .stat-box {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(2, 60px);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            width: 60px;
+            height: 60px;
+            background: #333;
+            color: white;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            font-size: 20px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #click-button:active {
-            transform: scale(0.95);
-        }
+
+        .btn:active { background: #4CAF50; }
+        .up { grid-column: 2; }
+        .left { grid-column: 1; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
     </style>
 </head>
 <body>
 
-    <div id="score">0</div>
-    <button id="click-button">ЖМИ!</button>
+    <div id="ui">
+        <div class="stat-box" id="score">Счет: 0</div>
+        <div class="stat-box" id="level">Уровень: 1</div>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="snakeGame" width="300" height="300"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="btn up" onclick="changeDir('up')">↑</div>
+        <div class="btn left" onclick="changeDir('left')">←</div>
+        <div class="btn down" onclick="changeDir('down')">↓</div>
+        <div class="btn right" onclick="changeDir('right')">→</</div>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Расширяем на весь экран
+        if (tg) tg.expand();
 
-        let count = 0;
-        const scoreDisplay = document.getElementById('score');
-        const btn = document.getElementById('click-button');
+        const canvas = document.getElementById("snakeGame");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const levelElement = document.getElementById("level");
 
-        // Настраиваем главную кнопку самого Телеграма (которая внизу)
-        tg.MainButton.text = "Поделиться результатом";
-        tg.MainButton.becomeVisible(); // Показываем её
+        const box = 20; 
+        let score = 0;
+        let level = 1;
+        let currentSpeed = 200; // ЗАМЕДЛИЛИ СТАРТ (было 150)
 
-        btn.addEventListener('click', () => {
-            count = count + 1;
-            scoreDisplay.innerText = count;
-            
-            // Обновляем текст в главной кнопке Телеграма
-            tg.MainButton.setText(`Очков: ${count}. Поделиться?`);
+        let snake = [{ x: 10 * box, y: 10 * box }];
+        let food = {
+            x: Math.floor(Math.random() * 15) * box,
+            y: Math.floor(Math.random() * 15) * box
+        };
+
+        let dir = "right";
+
+        function changeDir(newDir) {
+            if (newDir === "up" && dir !== "down") dir = "up";
+            if (newDir === "down" && dir !== "up") dir = "down";
+            if (newDir === "left" && dir !== "right") dir = "left";
+            if (newDir === "right" && dir !== "left") dir = "right";
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp" && dir !== "down") dir = "up";
+            if (e.key === "ArrowDown" && dir !== "up") dir = "down";
+            if (e.key === "ArrowLeft" && dir !== "right") dir = "left";
+            if (e.key === "ArrowRight" && dir !== "left") dir = "right";
         });
 
-        // Что произойдет при нажатии на главную кнопку внизу
-        tg.onEvent('mainButtonClicked', function(){
-            tg.showAlert(`Поздравляем! Вы набрали ${count} очков!`);
-        });
+        function draw() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "red";
+            ctx.fillRect(food.x, food.y, box, box);
+
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = (i === 0) ? "#4CAF50" : "#81C784";
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "black";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            if (dir === "up") snakeY -= box;
+            if (dir === "down") snakeY += box;
+            if (dir === "left") snakeX -= box;
+            if (dir === "right") snakeX += box;
+
+            if (snakeX === food.x && snakeY === food.y) {
+                score++;
+                scoreElement.innerText = "Счет: " + score;
+                
+                // СИСТЕМА УРОВНЕЙ: каждые 5 яблок увеличиваем скорость
+                if (score % 5 === 0) {
+                    level++;
+                    levelElement.innerText = "Уровень: " + level;
+                    currentSpeed -= 20; // Ускоряем (уменьшаем задержку)
+                    if (currentSpeed < 60) currentSpeed = 60; // Максимальная скорость, чтобы игра не стала невозможной
+                }
+
+                food = {
+                    x: Math.floor(Math.random() * 15) * box,
+                    y: Math.floor(Math.random() * 15) * box
+                };
+            } else {
+                snake.pop();
+            }
+
+            let newHead = { x: snakeX, y: snakeY };
+
+            if (snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height || collision(newHead, snake)) {
+                alert("Игра окончена! Ваш счет: " + score + "\nВы достигли уровня: " + level);
+                location.reload();
+                return; // Останавливаем выполнение, чтобы не вызвать следующий кадр
+            }
+
+            snake.unshift(newHead);
+
+            // Вместо setInterval используем setTimeout, чтобы скорость менялась динамически
+            setTimeout(draw, currentSpeed);
+        }
+
+        function collision(head, array) {
+            for (let i = 0; i < array.length; i++) {
+                if (head.x === array[i].x && head.y === array[i].y) return true;
+            }
+            return false;
+        }
+
+        // Первый запуск игры
+        draw();
     </script>
 </body>
 </html>
