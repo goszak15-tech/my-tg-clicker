@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой первый кликер</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            /* Используем системные цвета Телеграма */
+            background-color: var(--tg-theme-bg-color); 
+            color: var(--tg-theme-text-color);
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+        #score {
+            font-size: 60px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #click-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background: var(--tg-theme-button-color); /* Цвет кнопки из темы ТГ */
+            color: var(--tg-theme-button-text-color); /* Цвет текста кнопки из темы ТГ */
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        #click-button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="score">0</div>
+    <button id="click-button">ЖМИ!</button>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Расширяем на весь экран
+
+        let count = 0;
+        const scoreDisplay = document.getElementById('score');
+        const btn = document.getElementById('click-button');
+
+        // Настраиваем главную кнопку самого Телеграма (которая внизу)
+        tg.MainButton.text = "Поделиться результатом";
+        tg.MainButton.becomeVisible(); // Показываем её
+
+        btn.addEventListener('click', () => {
+            count = count + 1;
+            scoreDisplay.innerText = count;
+            
+            // Обновляем текст в главной кнопке Телеграма
+            tg.MainButton.setText(`Очков: ${count}. Поделиться?`);
+        });
+
+        // Что произойдет при нажатии на главную кнопку внизу
+        tg.onEvent('mainButtonClicked', function(){
+            tg.showAlert(`Поздравляем! Вы набрали ${count} очков!`);
+        });
+    </script>
+</body>
+</html>
